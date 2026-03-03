@@ -1,10 +1,10 @@
 ---
-name: prepare-release
+name: make-release
 description: Prepare a new release by updating the changelog and version
 disable-model-invocation: true
 ---
 
-Prepare a new release for asdex. Follow the instructions in CLAUDE.md under "Releases".
+Prepare a new release for asdex.
 
 ## Context
 
@@ -26,19 +26,29 @@ Prepare a new release for asdex. Follow the instructions in CLAUDE.md under "Rel
 3. Map commit types to changelog badge types:
    - `badge-breaking` ← any `!` (e.g. `feat!:`, `fix!:`)
    - `badge-feature` ← `feat:`
+   - `badge-enhancement` ← `perf:`, or `refactor:` when the PR description shows a user-facing improvement
    - `badge-bugfix` ← `fix:`
    - `badge-maintenance` ← `refactor:`, `test:`, `chore:`
    - `badge-docs` ← `docs:`
+   - Skip internal commits that aren't user-facing (e.g. `claude:`, `ci:`)
 
 4. Update `CHANGELOG.md`:
-   - Add a new `## Version vX.Y.Z` section above the previous release
+   - Add a new `` ## Version `vX.Y.Z` `` section above the previous release
    - Order entries by badge type: breaking, feature, enhancement, bugfix, maintenance, docs
    - Each entry links to its PR using the existing badge format
    - Add PR link references in numerical order
 
 5. Update `version` in `pyproject.toml`
 
-6. Show the user a summary of changes and commit as `` asdex `vX.Y.Z` ``.
+6. Show the user a summary of changes.
+   Wait for user confirmation before proceeding to commit.
 
-7. Push the commit, then tag with `git tag vX.Y.Z` and push the tag with `git push --tags`.
+7. Commit as `` asdex `vX.Y.Z` ``.
+   IMPORTANT: Stage both `CHANGELOG.md` AND `pyproject.toml` in the commit.
+   Ask the user if there are any other uncommitted files that should be included.
+
+8. Push the commit, then tag with `git tag vX.Y.Z` and push the tag with `git push --tags`.
    `vX.Y.Z` is the new version number from `pyproject.toml`.
+
+9. Create a GitHub release with `gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."`,
+   using the new changelog section (entries + badge/PR link references) as the release notes.
