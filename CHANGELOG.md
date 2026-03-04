@@ -1,5 +1,12 @@
 # asdex
 
+## Version `v0.1.2`
+* ![Feature][badge-feature] Handle all `ScatterDimensionNumbers` configurations ([#81])
+* ![Feature][badge-feature] Zero-skipping and bounds propagation for `div`, `mul`, `integer_pow` ([#80])
+* ![Feature][badge-feature] Track value bounds for dynamic-index sparsity ([#78])
+* ![Bugfix][badge-bugfix] Handle all `GatherDimensionNumbers` configurations ([#77])
+* ![Maintenance][badge-maintenance] Rename interpreter state types and variables ([#79])
+
 ## Version `v0.1.1`
 * ![Feature][badge-feature] Add `cumsum` primitive handler ([#76])
 * ![Feature][badge-feature] Add `erf` to unary elementwise dispatch ([#75])
@@ -14,6 +21,11 @@
 * ![Feature][badge-feature] Initial release ([#70])
 
 
+[#77]: https://github.com/adrhill/asdex/pull/77
+[#78]: https://github.com/adrhill/asdex/pull/78
+[#79]: https://github.com/adrhill/asdex/pull/79
+[#80]: https://github.com/adrhill/asdex/pull/80
+[#81]: https://github.com/adrhill/asdex/pull/81
 [#76]: https://github.com/adrhill/asdex/pull/76
 [#75]: https://github.com/adrhill/asdex/pull/75
 [#74]: https://github.com/adrhill/asdex/pull/74
