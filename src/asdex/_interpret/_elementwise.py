@@ -11,6 +11,7 @@ from ._commons import (
     atom_numel,
     atom_shape,
     atom_value_bounds,
+    clear_where_zero,
     copy_index_sets,
     empty_index_sets,
     index_sets,
@@ -226,13 +227,20 @@ def prop_sub(
     _propagate_bounds_sub(eqn, state_consts, state_bounds)
 
 
-def prop_integer_pow(eqn: JaxprEqn, state_indices: StateIndices) -> None:
+def prop_integer_pow(
+    eqn: JaxprEqn,
+    state_indices: StateIndices,
+    state_consts: StateConsts | None = None,
+    state_bounds: StateBounds | None = None,
+) -> None:
     """Integer power x^n is element-wise.
 
     Each output depends only on the corresponding input element.
-    Special case: x^0 = 1 has zero derivative, so no dependencies.
+    Special cases:
+    - x^0 = 1 has zero derivative, so no dependencies.
+    - 0^n = 0 for n > 0, so d(0^n)/dx = 0 and no dependencies.
 
-    ∂(x^n)/∂x = n·x^(n-1), which is zero iff n = 0.
+    ∂(x^n)/∂x = n·x^(n-1), which is zero iff n = 0 or (x = 0 and n > 1).
 
     Example: y = x^2 where x = [a, b, c]
         Input state_indices:  [{0}, {1}, {2}]
@@ -244,11 +252,66 @@ def prop_integer_pow(eqn: JaxprEqn, state_indices: StateIndices) -> None:
 
     https://docs.jax.dev/en/latest/_autosummary/jax.lax.integer_pow.html
     """
+    y = eqn.params.get("y", 1)
     in_indices = index_sets(state_indices, eqn.invars[0])
-    if eqn.params.get("y", 1) == 0:
+
+    if y == 0:
         state_indices[eqn.outvars[0]] = empty_index_sets(len(in_indices))
     else:
         state_indices[eqn.outvars[0]] = copy_index_sets(in_indices)
+
+    # Const propagation.
+    if state_consts is not None:
+        in_val = atom_const_val(eqn.invars[0], state_consts)
+        if in_val is not None:
+            state_consts[eqn.outvars[0]] = np.power(in_val, y)
+
+    # Zero-skipping: d(0^n)/dx = n * 0^(n-1) = 0 for n > 1.
+    # For n = 1, d(x)/dx = 1 even at x = 0, so no skipping.
+    if state_consts is not None and y > 1:
+        clear_where_zero(eqn, state_indices, state_consts, 0)
+
+    # Bounds propagation for [a,b]^n.
+    if state_bounds is not None:
+        _propagate_bounds_integer_pow(eqn, y, state_consts or {}, state_bounds)
+
+
+def _propagate_bounds_integer_pow(
+    eqn: JaxprEqn,
+    y: int,
+    state_consts: StateConsts,
+    state_bounds: StateBounds,
+) -> None:
+    """Propagate value bounds through ``integer_pow``.
+
+    - n == 0: bounds are (1, 1).
+    - n even: [0, max(|a|,|b|)^n] if interval spans zero,
+      else [min(|a|,|b|)^n, max(|a|,|b|)^n].
+    - n odd (monotone): [a^n, b^n].
+    """
+    in_bounds = atom_value_bounds(eqn.invars[0], state_consts, state_bounds)
+    if in_bounds is None:
+        return
+
+    lo, hi = in_bounds
+
+    if y == 0:
+        ones = np.ones_like(lo)
+        state_bounds[eqn.outvars[0]] = (ones, ones)
+    elif y % 2 == 1:
+        # Odd power is monotone.
+        state_bounds[eqn.outvars[0]] = (np.power(lo, y), np.power(hi, y))
+    else:
+        # Even power: x^n is not monotone over intervals spanning zero.
+        abs_lo = np.abs(lo)
+        abs_hi = np.abs(hi)
+        max_abs = np.maximum(abs_lo, abs_hi)
+        min_abs = np.minimum(abs_lo, abs_hi)
+
+        spans_zero = (lo <= 0) & (hi >= 0)
+        out_lo = np.where(spans_zero, np.zeros_like(lo), np.power(min_abs, y))
+        out_hi = np.power(max_abs, y)
+        state_bounds[eqn.outvars[0]] = (out_lo, out_hi)
 
 
 def prop_unary_elementwise(eqn: JaxprEqn, state_indices: StateIndices) -> None:
