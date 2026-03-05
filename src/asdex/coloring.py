@@ -42,8 +42,9 @@ class DenseColoringWarning(UserWarning):
 
 def jacobian_coloring(
     f: Callable,
-    input_shape: int | tuple[int, ...],
+    arg_shapes: int | tuple[int, ...] | tuple[tuple[int, ...], ...] | list,
     *,
+    argnums: int | tuple[int, ...] = 0,
     mode: JacobianMode | None = None,
     symmetric: bool = False,
 ) -> ColoredPattern:
@@ -51,7 +52,8 @@ def jacobian_coloring(
 
     Args:
         f: Function taking an array and returning an array.
-        input_shape: Shape of the input array.
+        arg_shapes: Shapes of the input arrays.
+        argnums: Indices of input arguments to calculate the Jacobian with respect to.
         mode: AD mode.
             ``"fwd"`` uses JVPs (forward-mode AD),
             ``"rev"`` uses VJPs (reverse-mode AD),
@@ -63,9 +65,8 @@ def jacobian_coloring(
     Returns:
         A [`ColoredPattern`][asdex.ColoredPattern] ready for [`jacobian_from_coloring`][asdex.jacobian_from_coloring].
     """
-    sparsity = _detect_jacobian_sparsity(f, input_shape)
-    return jacobian_coloring_from_sparsity(sparsity, symmetric=symmetric, mode=mode)
-
+    sparsity = _detect_jacobian_sparsity(f, arg_shapes, argnums=argnums)
+    return jacobian_coloring_from_sparsity(sparsity, mode=mode, symmetric=symmetric)
 
 def hessian_coloring(
     f: Callable,

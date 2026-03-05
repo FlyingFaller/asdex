@@ -1,5 +1,6 @@
 """Sparse Jacobian and Hessian computation using coloring and AD."""
 
+import math
 from collections.abc import Callable
 from typing import assert_never
 
@@ -21,11 +22,11 @@ from asdex.pattern import ColoredPattern
 
 # Public API
 
-
 def jacobian(
-    f: Callable[[ArrayLike], ArrayLike],
-    input_shape: int | tuple[int, ...],
+    f: Callable,
+    arg_shapes: int | tuple[int, ...] | tuple[tuple[int, ...], ...] | list,
     *,
+    argnums: int | tuple[int, ...] = 0,
     mode: JacobianMode | None = None,
     symmetric: bool = False,
 ) -> Callable[[ArrayLike], BCOO]:
@@ -36,9 +37,10 @@ def jacobian(
     in one call.
 
     Args:
-        f: Function taking an array and returning an array.
-            Input and output may be multi-dimensional.
-        input_shape: Shape of the input array.
+        f: Function taking input array(s) and returning an array.
+            Input(s) and output may be multi-dimensional.
+        arg_shapes: Shape of the input array(s).
+        argnums: Indices of input arguments to calculate the Jacobian with respect to.
         mode: AD mode.
             ``"fwd"`` uses JVPs (forward-mode AD),
             ``"rev"`` uses VJPs (reverse-mode AD).
@@ -51,8 +53,10 @@ def jacobian(
             the sparse Jacobian as BCOO of shape ``(m, n)``
             where ``n = x.size`` and ``m = prod(output_shape)``.
     """
-    coloring = _jacobian_coloring(f, input_shape, mode=mode, symmetric=symmetric)
-    return jacobian_from_coloring(f, coloring)
+    coloring = _jacobian_coloring(
+        f, arg_shapes, argnums=argnums, mode=mode, symmetric=symmetric
+    )
+    return jacobian_from_coloring(f, coloring, argnums=argnums)
 
 
 def hessian(
@@ -93,8 +97,10 @@ def hessian(
 
 
 def jacobian_from_coloring(
-    f: Callable[[ArrayLike], ArrayLike],
+    f: Callable,
     coloring: ColoredPattern,
+    *,
+    argnums: int | tuple[int, ...] = 0,
 ) -> Callable[[ArrayLike], BCOO]:
     """Build a sparse Jacobian function from a pre-computed coloring.
 
@@ -104,6 +110,7 @@ def jacobian_from_coloring(
     Args:
         f: Function taking an array and returning an array.
             Input and output may be multi-dimensional.
+        argnums: Indices of input arguments to calculate the Jacobian with respect to.
         coloring: Pre-computed [`ColoredPattern`][asdex.ColoredPattern]
             from [`jacobian_coloring`][asdex.jacobian_coloring].
 
@@ -113,8 +120,9 @@ def jacobian_from_coloring(
             where ``n = x.size`` and ``m = prod(output_shape)``.
     """
 
-    def jac_fn(x: ArrayLike) -> BCOO:
-        return _eval_jacobian(f, jnp.asarray(x), coloring)
+    def jac_fn(*args: ArrayLike):
+        args_jnp = tuple(jnp.asarray(x) for x in args)
+        return _eval_jacobian(f, args_jnp, argnums, coloring)
 
     return jac_fn
 
@@ -152,40 +160,37 @@ def hessian_from_coloring(
 
 
 def _eval_jacobian(
-    f: Callable[[ArrayLike], ArrayLike],
-    x: jax.Array,
+    f: Callable,
+    args: tuple[jax.Array, ...],
+    argnums: int | tuple[int, ...],
     coloring: ColoredPattern,
-) -> BCOO:
-    """Evaluate the sparse Jacobian of f at x."""
-    n = x.size
-
-    expected = coloring.sparsity.input_shape
-    if x.shape != expected:
-        raise ValueError(
-            f"Input shape {x.shape} does not match the colored pattern, "
-            f"which expects shape {expected}."
-        )
+) -> BCOO | tuple[BCOO, ...]:
+    """Evaluate the sparse Jacobian of f at args."""
+    argnums_tup = (argnums,) if isinstance(argnums, int) else tuple(argnums)
+    
+    total_size = sum(args[i].size for i in argnums_tup) # flattened length of inputs aka n
+    expected = coloring.sparsity.input_shape[0]
+    if total_size != expected:
+        raise ValueError(f"Tracked input size {total_size} does not match colored pattern size {expected}.")
 
     sparsity = coloring.sparsity
     m = sparsity.m
-    out_shape = jax.eval_shape(f, jnp.zeros_like(x)).shape
 
-    # Handle edge case: no outputs
-    if m == 0:
-        return BCOO((jnp.array([]), jnp.zeros((0, 2), dtype=jnp.int32)), shape=(0, n))
-
-    # Handle edge case: all-zero Jacobian
-    if sparsity.nnz == 0:
-        return BCOO((jnp.array([]), jnp.zeros((0, 2), dtype=jnp.int32)), shape=(m, n))
+    # Handle edge case: empty jacobian
+    if m == 0 or sparsity.nnz == 0:
+        results = [BCOO((jnp.array([]), jnp.zeros((0, 2), dtype=jnp.int32)), shape=(m, args[i].size)) for i in argnums_tup]
+        return results[0] if isinstance(argnums, int) else tuple(results)
 
     _assert_jacobian_mode(coloring.mode)
     match coloring.mode:
-        case "rev":
-            return _jacobian_rows(f, x, coloring, out_shape)
+        case "rev": 
+            bcoo_block = _jacobian_rows(f, args, argnums_tup, coloring)
         case "fwd":
-            return _jacobian_cols(f, x, coloring)
+            bcoo_block = _jacobian_cols(f, args, argnums_tup, coloring)
         case _ as unreachable:
-            assert_never(unreachable)  # type: ignore[type-assertion-failure]
+            assert_never(unreachable) # type: ignore[type-assertion-failure]
+
+    return _split_bcoo_jacobian(bcoo_block, args, argnums)
 
 
 def _eval_hessian(
@@ -222,35 +227,90 @@ def _eval_hessian(
 
 
 def _jacobian_rows(
-    f: Callable[[ArrayLike], ArrayLike],
-    x: jax.Array,
+    f: Callable,
+    args: tuple[jax.Array, ...],
+    argnums_tup: tuple[int, ...],
     coloring: ColoredPattern,
-    out_shape: tuple[int, ...],
 ) -> BCOO:
-    """Compute sparse Jacobian via row coloring + VJPs."""
-    seeds = jnp.asarray(coloring._seed_matrix, dtype=x.dtype)
-    _, vjp_fn = jax.vjp(f, x)
+    seeds = jnp.asarray(coloring._seed_matrix, dtype=args[0].dtype)
+    _, vjp_fn = jax.vjp(f, *args)
+    
+    out_struct = jax.eval_shape(f, *args)
+    out_leaves, out_treedef = jax.tree_util.tree_flatten(out_struct)
 
     def single_vjp(seed: jax.Array) -> jax.Array:
-        (grad,) = vjp_fn(seed.reshape(out_shape))
-        return grad.ravel()
+        seed_leaves = []
+        offset = 0
+        for leaf in out_leaves:
+            size = math.prod(leaf.shape) if leaf.shape else 1
+            seed_leaves.append(seed[offset : offset + size].reshape(leaf.shape))
+            offset += size
+
+        seed_unflat = jax.tree_util.tree_unflatten(out_treedef, seed_leaves)
+        vjp_outs = vjp_fn(seed_unflat)
+
+        grads = []
+        for i in argnums_tup:
+            if vjp_outs[i] is not None:
+                grads.append(jnp.atleast_1d(vjp_outs[i]).ravel())
+            else:
+                grads.append(jnp.zeros(args[i].size))
+        return jnp.concatenate(grads)
 
     return _decompress(coloring, jax.vmap(single_vjp)(seeds))
 
+# def _jacobian_rows(
+#     f: Callable[[ArrayLike], ArrayLike],
+#     x: jax.Array,
+#     coloring: ColoredPattern,
+#     out_shape: tuple[int, ...],
+# ) -> BCOO:
+#     """Compute sparse Jacobian via row coloring + VJPs."""
+#     seeds = jnp.asarray(coloring._seed_matrix, dtype=x.dtype)
+#     _, vjp_fn = jax.vjp(f, x)
+
+#     def single_vjp(seed: jax.Array) -> jax.Array:
+#         (grad,) = vjp_fn(seed.reshape(out_shape))
+#         return grad.ravel()
+
+#     return _decompress(coloring, jax.vmap(single_vjp)(seeds))
 
 def _jacobian_cols(
-    f: Callable[[ArrayLike], ArrayLike],
-    x: jax.Array,
+    f: Callable,
+    args: tuple[jax.Array, ...],
+    argnums_tup: tuple[int, ...],
     coloring: ColoredPattern,
 ) -> BCOO:
     """Compute sparse Jacobian via column coloring + JVPs."""
-    seeds = jnp.asarray(coloring._seed_matrix, dtype=x.dtype)
+    seeds = jnp.asarray(coloring._seed_matrix, dtype=args[0].dtype)
 
     def single_jvp(seed: jax.Array) -> jax.Array:
-        _, jvp_out = jax.jvp(f, (x,), (seed.reshape(x.shape),))
-        return jvp_out.ravel()
+        tangents = list(jnp.zeros_like(x) for x in args)
+        offset = 0
+        for i in argnums_tup:
+            size = args[i].size
+            tangents[i] = seed[offset : offset + size].reshape(args[i].shape)
+            offset += size
+
+        _, jvp_out = jax.jvp(f, args, tuple(tangents))
+        out_leaves = jax.tree_util.tree_leaves(jvp_out)
+        return jnp.concatenate([jnp.atleast_1d(o).ravel() for o in out_leaves])
 
     return _decompress(coloring, jax.vmap(single_jvp)(seeds))
+
+# def _jacobian_cols(
+#     f: Callable[[ArrayLike], ArrayLike],
+#     x: jax.Array,
+#     coloring: ColoredPattern,
+# ) -> BCOO:
+#     """Compute sparse Jacobian via column coloring + JVPs."""
+#     seeds = jnp.asarray(coloring._seed_matrix, dtype=x.dtype)
+
+#     def single_jvp(seed: jax.Array) -> jax.Array:
+#         _, jvp_out = jax.jvp(f, (x,), (seed.reshape(x.shape),))
+#         return jvp_out.ravel()
+
+#     return _decompress(coloring, jax.vmap(single_jvp)(seeds))
 
 
 # Private helpers: Hessian
@@ -293,6 +353,30 @@ def _compute_hvps(
 
 # Private helpers: decompression
 
+def _split_bcoo_jacobian(bcoo_block: BCOO, args, argnums):
+    """Split the fused block BCOO back into independent Jacobians."""
+    argnums_tup = (argnums,) if isinstance(argnums, int) else tuple(argnums)
+    if len(argnums_tup) == 1:
+        return bcoo_block
+
+    results = []
+    offset = 0
+    data = bcoo_block.data
+    indices = bcoo_block.indices
+
+    for i in argnums_tup:
+        size = args[i].size
+        col_indices = indices[:, 1]
+        mask = (col_indices >= offset) & (col_indices < offset + size)
+
+        sub_data = data[mask]
+        sub_indices = indices[mask]
+        shifted_indices = sub_indices.at[:, 1].set(sub_indices[:, 1] - offset)
+
+        results.append(BCOO((sub_data, shifted_indices), shape=(bcoo_block.shape[0], size)))
+        offset += size
+
+    return tuple(results)
 
 def _decompress(coloring: ColoredPattern, compressed: jax.Array) -> BCOO:
     """Extract sparse entries from compressed gradient rows.
