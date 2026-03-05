@@ -9,6 +9,9 @@
 [![Benchmarks](https://img.shields.io/badge/benchmarks-view-blue)](https://adrianhill.de/asdex/dev/bench/)
 [![Changelog](https://img.shields.io/badge/news-changelog-yellow)](https://github.com/adrhill/asdex/blob/main/CHANGELOG.md)
 
+Forked from: https://github.com/adrhill/asdex
+
+Added support for sparse jacobians of mult-argument input functions with arbitrarily shaped inputs and output. My implementation, however, is poor and doesn't work when JITed. If you are looking for something like this I would support the feature request on the official repository. 
 
 [Automatic Sparse Differentiation](https://iclr-blogposts.github.io/2025/blog/sparse-autodiff/) in JAX.
 
