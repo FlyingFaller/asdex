@@ -1,5 +1,11 @@
 # asdex
 
+## Version `v0.1.3`
+* ![Feature][badge-feature] Per-timestep forward simulation in `scan` handler ([#87])
+* ![Feature][badge-feature] Per-element branch selection in `select_n` for const predicates ([#85])
+* ![Feature][badge-feature] Propagate const values through `squeeze` ([#84])
+* ![Feature][badge-feature] Merge value bounds in `select_n` for dynamic predicates ([#83])
+
 ## Version `v0.1.2`
 * ![Feature][badge-feature] Handle all `ScatterDimensionNumbers` configurations ([#81])
 * ![Feature][badge-feature] Zero-skipping and bounds propagation for `div`, `mul`, `integer_pow` ([#80])
@@ -21,6 +27,10 @@
 * ![Feature][badge-feature] Initial release ([#70])
 
 
+[#83]: https://github.com/adrhill/asdex/pull/83
+[#84]: https://github.com/adrhill/asdex/pull/84
+[#85]: https://github.com/adrhill/asdex/pull/85
+[#87]: https://github.com/adrhill/asdex/pull/87
 [#77]: https://github.com/adrhill/asdex/pull/77
 [#78]: https://github.com/adrhill/asdex/pull/78
 [#79]: https://github.com/adrhill/asdex/pull/79
