@@ -91,3 +91,36 @@ def test_broadcast_input_add_constant():
         dtype=int,
     )
     np.testing.assert_array_equal(result, expected)
+
+
+# Size-0 dimension
+
+
+@pytest.mark.array_ops
+def test_broadcast_size_zero_dim():
+    """Broadcasting a zero-sized array produces an empty Jacobian.
+
+    Zero-sized inputs have no elements, so output index sets should be empty.
+    """
+
+    def f(x):
+        return jnp.broadcast_to(x[:0].reshape(0, 1), (0, 3)).flatten()
+
+    result = jacobian_sparsity(f, input_shape=3)
+    assert result.shape == (0, 3)
+    assert result.nnz == 0
+
+
+@pytest.mark.array_ops
+def test_broadcast_expand_dims_zero():
+    """expand_dims on a zero-sized array produces an empty Jacobian.
+
+    Reproducer from GitHub issue #86.
+    """
+
+    def f(x):
+        return jnp.expand_dims(x[:0], axis=1).flatten()
+
+    result = jacobian_sparsity(f, input_shape=3)
+    assert result.shape == (0, 3)
+    assert result.nnz == 0

@@ -218,3 +218,18 @@ def test_sort_non_contiguous_input():
     # Sort within each row: all 3 outputs per row depend on all 3 inputs.
     expected = np.ones((6, 3), dtype=int)
     np.testing.assert_array_equal(result, expected)
+
+
+# Size-0 dimension
+
+
+@pytest.mark.array_ops
+def test_sort_zero_size():
+    """Sorting a zero-sized array produces an empty Jacobian."""
+
+    def f(x):
+        return jnp.sort(x[:0])
+
+    result = jacobian_sparsity(f, input_shape=3)
+    assert result.shape == (0, 3)
+    assert result.nnz == 0

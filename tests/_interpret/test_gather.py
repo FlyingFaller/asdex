@@ -824,3 +824,18 @@ def test_gather_batching_dims():
     # out[0] = arr[0, 1] = x[1], out[1] = arr[1, 0] = x[3].
     expected = _perm_matrix(2, 6, [1, 3])
     np.testing.assert_array_equal(result, expected)
+
+
+# Size-0 dimension
+
+
+@pytest.mark.array_ops
+def test_gather_zero_size_indices():
+    """Gathering from a zero-sized array produces an empty Jacobian."""
+
+    def f(x):
+        return x[:0][jnp.array([], dtype=int)]
+
+    result = jacobian_sparsity(f, input_shape=3)
+    assert result.shape == (0, 3)
+    assert result.nnz == 0
