@@ -1,5 +1,9 @@
 # asdex
 
+## Version `v0.1.5`
+* ![Feature][badge-feature] Add `value_and_jacobian` / `value_and_hessian` API ([#89])
+* ![Enhancement][badge-enhancement] Avoid redundant forward pass in `jacobian` and `hessian` ([#89])
+
 ## Version `v0.1.4`
 * ![Bugfix][badge-bugfix] Handle zero-sized arrays in `broadcast_in_dim`, `sort`, and `gather` ([#88])
 
@@ -30,6 +34,7 @@
 * ![Feature][badge-feature] Initial release ([#70])
 
 
+[#89]: https://github.com/adrhill/asdex/pull/89
 [#88]: https://github.com/adrhill/asdex/pull/88
 [#83]: https://github.com/adrhill/asdex/pull/83
 [#84]: https://github.com/adrhill/asdex/pull/84
