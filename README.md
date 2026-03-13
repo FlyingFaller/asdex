@@ -1,18 +1,25 @@
-# asdex
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="asdex logo" width="200">
+</p>
+<h1 align="center">asdex</h1>
+<p align="center">
+  <a href="https://iclr-blogposts.github.io/2025/blog/sparse-autodiff/">Automatic Sparse Differentiation</a> in JAX.
+</p>
 
-[![CI](https://github.com/adrhill/asdex/actions/workflows/ci.yml/badge.svg)](https://github.com/adrhill/asdex/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/adrhill/asdex/graph/badge.svg)](https://codecov.io/gh/adrhill/asdex)
-[![PyPI](https://img.shields.io/pypi/v/asdex)](https://pypi.org/project/asdex/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18788242.svg)](https://doi.org/10.5281/zenodo.18788242)
+<p align="center">
+  <a href="https://github.com/adrhill/asdex/actions/workflows/ci.yml"><img src="https://github.com/adrhill/asdex/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/adrhill/asdex"><img src="https://codecov.io/gh/adrhill/asdex/graph/badge.svg" alt="codecov"></a>
+  <a href="https://pypi.org/project/asdex/"><img src="https://img.shields.io/pypi/v/asdex" alt="PyPI"></a>
+  <a href="https://doi.org/10.5281/zenodo.18788242"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18788242.svg" alt="DOI"></a>
+</p>
+<p align="center">
+  <a href="https://adrianhill.de/asdex/"><img src="https://img.shields.io/badge/docs-online-blue" alt="Docs"></a>
+  <a href="https://adrianhill.de/asdex/dev/bench/"><img src="https://img.shields.io/badge/benchmarks-view-blue" alt="Benchmarks"></a>
+  <a href="https://github.com/adrhill/asdex/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/news-changelog-yellow" alt="Changelog"></a>
+</p>
 
-[![Docs](https://img.shields.io/badge/docs-online-blue)](https://adrianhill.de/asdex/)
-[![Benchmarks](https://img.shields.io/badge/benchmarks-view-blue)](https://adrianhill.de/asdex/dev/bench/)
-[![Changelog](https://img.shields.io/badge/news-changelog-yellow)](https://github.com/adrhill/asdex/blob/main/CHANGELOG.md)
 
-
-[Automatic Sparse Differentiation](https://iclr-blogposts.github.io/2025/blog/sparse-autodiff/) in JAX.
-
-`asdex` (pronounced _Aztecs_) exploits sparsity structure to efficiently compute sparse Jacobians and Hessians.
+`asdex` (pronounced _Aztecs_) exploits sparsity structure to efficiently materialize Jacobians and Hessians.
 It implements a custom [Jaxpr](https://docs.jax.dev/en/latest/jaxpr.html) interpreter
 that uses [abstract interpretation](https://en.wikipedia.org/wiki/Abstract_interpretation)
 to detect sparsity patterns from the computation graph,
@@ -65,10 +72,10 @@ Instead of 49 VJPs or 50 JVPs,
 
 ## Documentation
 
-- [Getting Started](https://adrianhill.de/asdex/tutorials/getting-started/) — step-by-step tutorial
-- [How-To Guides](https://adrianhill.de/asdex/how-to/jacobians/) — task-oriented recipes
-- [Explanation](https://adrianhill.de/asdex/explanation/sparsity-detection/) — how and why it works
-- [API Reference](https://adrianhill.de/asdex/reference/) — full API documentation
+- [Getting Started](https://adrianhill.de/asdex/tutorials/getting-started/): step-by-step tutorial
+- [How-To Guides](https://adrianhill.de/asdex/how-to/jacobians/): task-oriented recipes
+- [Explanation](https://adrianhill.de/asdex/explanation/sparsity-detection/): how and why it works
+- [API Reference](https://adrianhill.de/asdex/reference/): full API documentation
 
 ## Acknowledgements
 
@@ -81,4 +88,4 @@ This package is built with Claude Code based on previous work by [Adrian Hill](h
 - [_SparseMatrixColorings.jl_](https://github.com/gdalle/SparseMatrixColorings.jl), G. Dalle, A. Montoison
 - [_sparsediffax_](https://github.com/gdalle/sparsediffax), G. Dalle
 
-which in turn stands on the shoulders of giants — notably Andreas Griewank, Andrea Walther, and Assefaw Gebremedhin.
+These works in turn stand on the shoulders of giants, notably Andreas Griewank, Andrea Walther, and Assefaw Gebremedhin.
