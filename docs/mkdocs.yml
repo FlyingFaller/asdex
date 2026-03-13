@@ -1,3 +1,5 @@
+docs_dir: .
+site_dir: ../site
 site_name: asdex
 site_url: https://adrianhill.de/asdex/
 site_description: Automatic Sparse Differentiation in JAX
@@ -90,7 +92,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [src]
+          paths: [../src]
           options:
             docstring_style: google
             show_root_heading: true
