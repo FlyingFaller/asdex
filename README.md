@@ -89,3 +89,5 @@ This package is built with Claude Code based on previous work by [Adrian Hill](h
 - [_sparsediffax_](https://github.com/gdalle/sparsediffax), G. Dalle
 
 These works in turn stand on the shoulders of giants, notably Andreas Griewank, Andrea Walther, and Assefaw Gebremedhin.
+
+The asdex logo was designed by [@overripemango](https://instagram.com/overripemango).
