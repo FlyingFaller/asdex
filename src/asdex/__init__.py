@@ -6,6 +6,9 @@ structure without evaluating derivatives, so results are valid for all inputs.
 
 from asdex.coloring import (
     DenseColoringWarning,
+    color_cols,
+    color_rows,
+    color_symmetric,
     hessian_coloring,
     hessian_coloring_from_sparsity,
     jacobian_coloring,
@@ -39,6 +42,9 @@ __all__ = [
     "VerificationError",
     "check_hessian_correctness",
     "check_jacobian_correctness",
+    "color_cols",
+    "color_rows",
+    "color_symmetric",
     "hessian",
     "hessian_coloring",
     "hessian_coloring_from_sparsity",
