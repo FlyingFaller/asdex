@@ -37,8 +37,9 @@ Prepare a new release for asdex.
 5. Update `CHANGELOG.md`:
    - Add a new `` ## Version `vX.Y.Z` `` section above the previous release
    - Order entries by badge type: breaking, feature, enhancement, bugfix, maintenance, docs
-   - Each entry links to its PR using the existing badge format
-   - Add PR link references in numerical order
+   - Each entry links to its PR using the existing badge format.
+     If a commit has no PR, link to the commit using the first 6 characters of the hash.
+   - Add PR/commit link references in numerical order
 
 6. Update `version` in `pyproject.toml`
 
