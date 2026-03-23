@@ -1,5 +1,10 @@
 # asdex
 
+## Version `v0.1.6`
+* ![Feature][badge-feature] Export `color_rows`, `color_cols`, and `color_symmetric` in public API ([669b5c])
+* ![Feature][badge-feature] Validate and coerce inputs in `*_coloring_from_sparsity` ([#90])
+* ![Bugfix][badge-bugfix] Preserve aspect ratio in braille sparsity display ([#91])
+
 ## Version `v0.1.5`
 * ![Feature][badge-feature] Add `value_and_jacobian` / `value_and_hessian` API ([#89])
 * ![Enhancement][badge-enhancement] Avoid redundant forward pass in `jacobian` and `hessian` ([#89])
@@ -34,6 +39,9 @@
 * ![Feature][badge-feature] Initial release ([#70])
 
 
+[669b5c]: https://github.com/adrhill/asdex/commit/669b5c
+[#90]: https://github.com/adrhill/asdex/pull/90
+[#91]: https://github.com/adrhill/asdex/pull/91
 [#89]: https://github.com/adrhill/asdex/pull/89
 [#88]: https://github.com/adrhill/asdex/pull/88
 [#83]: https://github.com/adrhill/asdex/pull/83
