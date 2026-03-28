@@ -35,6 +35,10 @@ def identity_index_sets(n: int) -> list[IndexSet]:
     """Create identity sets where element i depends on index i."""
     return [singleton_index_set(i) for i in range(n)]
 
+def offset_identity_index_sets(n: int, k: int) -> list[IndexSet]:
+    """Create identity sets where element i depends on index i."""
+    return [singleton_index_set(i + k) for i in range(n)]
+
 
 StateIndices = dict[Var, list[IndexSet]]
 """Maps each variable to its per-element dependency index sets."""

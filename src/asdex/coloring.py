@@ -43,8 +43,9 @@ class DenseColoringWarning(UserWarning):
 
 def jacobian_coloring(
     f: Callable,
-    input_shape: int | tuple[int, ...],
+    input_shape: tuple[int, ...] | tuple[tuple[int, ...], ...],
     *,
+    argnums: int | tuple[int, ...] = 0,
     mode: JacobianMode | None = None,
     symmetric: bool = False,
 ) -> ColoredPattern:
@@ -64,7 +65,7 @@ def jacobian_coloring(
     Returns:
         A [`ColoredPattern`][asdex.ColoredPattern] ready for [`jacobian_from_coloring`][asdex.jacobian_from_coloring].
     """
-    sparsity = _detect_jacobian_sparsity(f, input_shape)
+    sparsity = _detect_jacobian_sparsity(f, input_shape, argnums=argnums)
     return jacobian_coloring_from_sparsity(sparsity, symmetric=symmetric, mode=mode)
 
 

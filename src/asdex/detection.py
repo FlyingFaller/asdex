@@ -8,12 +8,15 @@ import jax.numpy as jnp
 import numpy as np
 
 from asdex._interpret import prop_jaxpr
-from asdex._interpret._commons import identity_index_sets
+from asdex._interpret._commons import empty_index_sets, offset_identity_index_sets
 from asdex.pattern import SparsityPattern
 
 
 def jacobian_sparsity(
-    f: Callable, input_shape: int | tuple[int, ...]
+    f: Callable, 
+    input_shape: tuple[int, ...] | tuple[tuple[int, ...], ...],
+    *,
+    argnums: int | tuple[int, ...] = 0,
 ) -> SparsityPattern:
     """Detect global Jacobian sparsity pattern for f: R^n -> R^m.
 
@@ -31,28 +34,43 @@ def jacobian_sparsity(
             where ``n = prod(input_shape)`` and ``m = prod(output_shape)``.
             Entry ``(i, j)`` is present if output ``i`` depends on input ``j``.
     """
-    dummy_input = jnp.zeros(input_shape)
-    closed_jaxpr = jax.make_jaxpr(f)(dummy_input)
+    argnums_tup = (argnums,) if isinstance(argnums, int) else tuple(argnums)
+
+    if input_shape and isinstance(input_shape[0], int):
+        shapes = (input_shape,)
+    else:
+        shapes = input_shape
+
+    dummy_inputs = [jnp.zeros(s) for s in shapes]
+    closed_jaxpr, out_struct = jax.make_jaxpr(f, return_shape=True)(*dummy_inputs)
     jaxpr = closed_jaxpr.jaxpr
-    m = int(jax.eval_shape(f, dummy_input).size)
-    n = input_shape if isinstance(input_shape, int) else math.prod(input_shape)
 
-    # Initialize: input element i depends on input index i
-    input_indices = [identity_index_sets(n)]
+    m = math.prod(out_struct.shape) if out_struct.shape else 1
 
-    # Build state_consts from closed jaxpr consts for static index tracking
+    input_indices = []
+    current_offset = 0
+
+    for i, shape in enumerate(shapes):
+        n = math.prod(shape) # We know it's a tuple now
+        if i in argnums_tup:
+            input_indices.append(offset_identity_index_sets(n, current_offset))
+            current_offset += n
+        else:
+            input_indices.append(empty_index_sets(n))
+            
+    total_tracked_size = current_offset
+
     state_consts = {
         var: np.asarray(val)
         for var, val in zip(jaxpr.constvars, closed_jaxpr.consts, strict=False)
     }
 
-    # Propagate through the jaxpr
     output_indices_list = prop_jaxpr(jaxpr, input_indices, state_consts)
 
-    # Extract output dependencies (first output variable)
-    out_indices = output_indices_list[0] if output_indices_list else []
+    out_indices = []
+    for out_deps in output_indices_list:
+        out_indices.extend(out_deps)
 
-    # Build sparsity pattern
     rows = []
     cols = []
     for i, deps in enumerate(out_indices):
@@ -60,8 +78,12 @@ def jacobian_sparsity(
             rows.append(i)
             cols.append(j)
 
-    shape_tuple = (input_shape,) if isinstance(input_shape, int) else tuple(input_shape)
-    return SparsityPattern.from_coo(rows, cols, (m, n), input_shape=shape_tuple)
+    return SparsityPattern.from_coo(
+        rows,
+        cols,
+        (m, total_tracked_size),
+        input_shape=(total_tracked_size,),
+    )
 
 
 def hessian_sparsity(
